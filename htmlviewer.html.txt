@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSC '26: Live Mission Tracker</title>
+    <style>
+        :root { --study: #2ecc71; --missed: #e74c3c; --sleep: #607d8b; --adda: #f1c40f; --accent: #3498db; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 10px; color: #333; }
+        .container { max-width: 550px; margin: auto; background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); }
+        
+        header { text-align: center; border-bottom: 2px solid var(--accent); margin-bottom: 15px; padding-bottom: 10px; }
+        .live-report { background: #2c3e50; color: white; padding: 15px; border-radius: 15px; margin-bottom: 20px; text-align: center; }
+        .progress-container { background: #444; height: 10px; border-radius: 5px; margin: 10px 0; overflow: hidden; }
+        #progressBar { background: var(--study); height: 100%; width: 0%; transition: 0.5s; }
+        
+        .slot { display: flex; flex-direction: column; background: #f8f9fa; margin-bottom: 10px; padding: 12px; border-radius: 12px; border-left: 6px solid #ddd; }
+        .slot-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .time-label { font-weight: bold; font-size: 0.85rem; color: #555; }
+        .task-type-label { font-size: 0.85rem; font-weight: bold; color: #34495e; background: #eee; padding: 2px 8px; border-radius: 5px; }
+        
+        .plan-input { border: 1px solid #ddd; border-radius: 8px; padding: 10px; font-size: 0.95rem; font-family: inherit; outline: none; transition: 0.3s; width: calc(100% - 22px); }
+        .plan-input:focus { border-color: var(--accent); background: #fff; }
+
+        .action-area { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+        .status-btns { display: flex; gap: 8px; }
+        .btn { border: none; padding: 6px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 1.1rem; }
+        .btn-check { background: #e8f5e9; color: #2ecc71; border: 1px solid #2ecc71; }
+        .btn-cross { background: #ffebee; color: #e74c3c; border: 1px solid #e74c3c; }
+        
+        .border-study { border-left-color: var(--study); }
+        .border-sleep { border-left-color: var(--sleep); background: #eceff1; }
+        .border-adda { border-left-color: var(--adda); }
+
+        .done { background: #d4edda !important; }
+        .failed { background: #f8d7da !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h2 style="margin:0;">HSC '26 মিশন ডায়েরি</h2>
+        <div id="dateText" style="color: var(--accent); font-weight: bold; font-size: 0.9rem; margin-top: 5px;"></div>
+    </header>
+
+    <div class="live-report">
+        <div style="font-size: 0.8rem; opacity: 0.8;">আজকের পড়া শেষ হয়েছে:</div>
+        <div id="studyCount" style="font-size: 1.5rem; font-weight: bold;">০/১০ ঘণ্টা</div>
+        <div class="progress-container"><div id="progressBar"></div></div>
+        <div id="liveStars" style="font-size: 1.5rem; color: #f1c40f;">☆☆☆☆☆</div>
+    </div>
+
+    <div id="diaryBoard"></div>
+</div>
+
+<script>
+    const scheduleData = [
+        { h: "1-8", task: "😴 গভীর ঘুম", type: "sleep", label: "01 AM - 08 AM" },
+        { h: 8, task: "📚 পড়াশোনা ১", type: "study", label: "08 AM - 09 AM" },
+        { h: 9, task: "📚 পড়াশোনা ১", type: "study", label: "09 AM - 10 AM" },
+        { h: 10, task: "📚 পড়াশোনা ১", type: "study", label: "10 AM - 11 AM" },
+        { h: 11, task: "⚙️ জব/নাস্তা", type: "other", label: "11 AM - 12 PM" },
+        { h: 12, task: "📚 পড়াশোনা ২", type: "study", label: "12 PM - 01 PM" },
+        { h: 13, task: "📚 পড়াশোনা ২", type: "study", label: "01 PM - 02 PM" },
+        { h: 14, task: "🚿 বিরতি/খাবার", type: "other", label: "02 PM - 03 PM" },
+        { h: 15, task: "☕ আড্ডা/বিশ্রাম", type: "adda", label: "03 PM - 04 PM" },
+        { h: 16, task: "☕ আড্ডা/বিশ্রাম", type: "adda", label: "04 PM - 05 PM" },
+        { h: 17, task: "☕ আড্ডা/বিশ্রাম", type: "adda", label: "05 PM - 06 PM" },
+        { h: 18, task: "⚙️ জব/নামাজ", type: "other", label: "06 PM - 07 PM" },
+        { h: 19, task: "⚙️ জব/নামাজ", type: "other", label: "07 PM - 08 PM" },
+        { h: 20, task: "📚 পড়াশোনা ৩", type: "study", label: "08 PM - 09 PM" },
+        { h: 21, task: "📚 পড়াশোনা ৩", type: "study", label: "09 PM - 10 PM" },
+        { h: 22, task: "📚 পড়াশোনা ৩", type: "study", label: "10 PM - 11 PM" },
+        { h: 23, task: "🍲 খাবার/বিশ্রাম", type: "other", label: "11 PM - 12 AM" },
+        { h: 0, task: "📚 পড়াশোনা ৪", type: "study", label: "12 AM - 01 AM" }
+    ];
+
+    let studyLog = new Set();
+
+    function renderDiary() {
+        const board = document.getElementById('diaryBoard');
+        const now = new Date();
+        document.getElementById('dateText').innerText = now.toLocaleDateString('bn-BD', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+        scheduleData.forEach(item => {
+            const row = document.createElement('div');
+            row.className = `slot border-${item.type}`;
+            row.id = `row-${item.h}`;
+            
+            row.innerHTML = `
+                <div class="slot-top">
+                    <span class="time-label">${item.label}</span>
+                    <span class="task-type-label">${item.task}</span>
+                </div>
+                <input type="text" class="plan-input" placeholder="এখানে তোমার আজকের পরিকল্পনা লেখো...">
+                <div class="action-area">
+                    <span style="font-size: 0.75rem; color: #777;">সম্পন্ন হয়েছে?</span>
+                    <div class="status-btns">
+                        <button class="btn btn-check" onclick="updateStatus('${item.h}', true)">✓</button>
+                        <button class="btn btn-cross" onclick="updateStatus('${item.h}', false)">✕</button>
+                    </div>
+                </div>
+            `;
+            board.appendChild(row);
+        });
+    }
+
+    function updateStatus(h, isDone) {
+        const row = document.getElementById(`row-${h}`);
+        const taskObj = scheduleData.find(x => x.h == h);
+        
+        row.classList.remove('done', 'failed');
+        
+        if (isDone) {
+            row.classList.add('done');
+            if (taskObj.type === 'study') studyLog.add(h);
+        } else {
+            row.classList.add('failed');
+            if (taskObj.type === 'study') studyLog.delete(h);
+        }
+        
+        refreshReport();
+    }
+
+    function refreshReport() {
+        const count = studyLog.size;
+        const totalStudyHours = 10;
+        const percentage = (count / totalStudyHours) * 100;
+        
+        document.getElementById('studyCount').innerText = `${count}/${totalStudyHours} ঘণ্টা`;
+        document.getElementById('progressBar').style.width = Math.min(percentage, 100) + "%";
+        
+        let stars = Math.ceil(count / 2); 
+        if (stars > 5) stars = 5;
+        document.getElementById('liveStars').innerText = "★".repeat(stars) + "☆".repeat(5 - stars);
+    }
+
+    renderDiary();
+</script>
+
+</body>
+</html>
