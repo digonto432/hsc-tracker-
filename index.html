@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HSC '26: Devil Tracker</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <style>
+        :root { 
+            --devil-red: #ff0000;
+            --dark-blood: #4a0000;
+            --glass: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 0, 0, 0.2);
+        }
+        body { 
+            font-family: 'SF Pro Display', sans-serif; background: #000; 
+            margin: 0; padding: 10px; color: #fff; overflow-x: hidden;
+        }
+
+        /* Animated Devil Aura */
+        body::before {
+            content: ""; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle at center, rgba(255, 0, 0, 0.08) 0%, transparent 50%);
+            animation: rotateBg 15s linear infinite; z-index: -1;
+        }
+        @keyframes rotateBg { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .container { 
+            max-width: 500px; margin: 20px auto; background: rgba(5, 5, 5, 0.8); 
+            backdrop-filter: blur(50px); border-radius: 40px; padding: 25px; 
+            border: 1px solid var(--border); box-shadow: 0 0 50px rgba(255, 0, 0, 0.2);
+        }
+
+        /* DEVIL COUNTDOWN BOX */
+        .devil-reminder {
+            background: linear-gradient(180deg, rgba(255, 0, 0, 0.2) 0%, transparent 100%);
+            border: 2px solid var(--devil-red);
+            padding: 25px;
+            border-radius: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.4);
+            animation: redGlow 2s infinite alternate;
+        }
+        .devil-reminder h3 { 
+            margin: 0; color: var(--devil-red); font-size: 0.75rem; 
+            text-transform: uppercase; letter-spacing: 5px; font-weight: 900;
+        }
+        .devil-reminder .days { 
+            font-size: 4.5rem; font-weight: 900; color: #fff; 
+            text-shadow: 0 0 15px #ff0000, 0 0 30px #ff0000;
+            display: block; line-height: 1; margin: 10px 0;
+        }
+        .devil-reminder .sub { font-size: 0.7rem; color: #ff4d4d; letter-spacing: 2px; font-weight: bold; }
+
+        @keyframes redGlow {
+            from { box-shadow: 0 0 20px rgba(255, 0, 0, 0.3); transform: scale(1); }
+            to { box-shadow: 0 0 40px rgba(255, 0, 0, 0.6); transform: scale(1.02); }
+        }
+
+        .report-card { background: var(--glass); padding: 20px; border-radius: 30px; text-align: center; margin-bottom: 25px; border: 1px solid var(--border); }
+        .progress-bar-bg { background: #111; height: 12px; border-radius: 20px; margin: 15px 0; overflow: hidden; }
+        #progressBar { background: linear-gradient(90deg, #550000, #ff0000); height: 100%; width: 0%; transition: 1s ease; }
+
+        .slot { background: var(--glass); margin-bottom: 15px; padding: 20px; border-radius: 25px; border: 1px solid rgba(255, 0, 0, 0.1); }
+        .current-slot { border-color: var(--devil-red) !important; background: rgba(255, 0, 0, 0.05) !important; }
+        .time-badge { color: #ff4d4d; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; }
+
+        .task-input { border: none; background: transparent; font-size: 1.3rem; font-weight: 700; color: #fff; outline: none; width: 100%; margin: 10px 0; }
+        .btn-check { background: rgba(0, 255, 120, 0.1); color: #00ff78; border: 1px solid #00ff78; padding: 8px 20px; border-radius: 12px; cursor: pointer; font-weight: 900; }
+        .btn-cross { background: rgba(255, 0, 0, 0.1); color: #ff0000; border: 1px solid #ff0000; padding: 8px 20px; border-radius: 12px; cursor: pointer; font-weight: 900; }
+        
+        .done { opacity: 0.4; border-color: #00ff78 !important; }
+        .miss { border-color: #ff0000 !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="devil-reminder">
+        <h3>JUDGMENT DAY REMAINING</h3>
+        <span class="days" id="countdownDays">--</span>
+        <div class="sub">TICK TOCK. EXECUTE OR DIE.</div>
+    </div>
+
+    <div class="report-card">
+        <div id="progressText" style="font-size: 3rem; font-weight: 900;">0%</div>
+        <div class="progress-bar-bg"><div id="progressBar"></div></div>
+    </div>
+
+    <div id="diaryBoard"></div>
+</div>
+
+<script>
+    let currentTimestamp = new Date().setHours(0,0,0,0);
+
+    function updateDeadline() {
+        const deadline = new Date(2026, 6, 2); // 2nd July 2026
+        const diff = deadline - new Date();
+        const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+        document.getElementById('countdownDays').innerText = days > 0 ? days : "00";
+    }
+
+    const allTimes = ["01-02 AM", "02-03 AM", "03-04 AM", "04-05 AM", "05-06 AM", "06-07 AM", "07-08 AM", "08-09 AM", "09-10 AM", "10-11 AM", "11-12 PM", "12-01 PM", "01-02 PM", "02-03 PM", "03-04 PM", "04-05 PM", "05-06 PM", "06-07 PM", "07-08 PM", "08-09 PM", "09-10 PM", "10-11 PM", "11-12 AM", "12-01 AM"];
+
+    function renderDiary() {
+        const board = document.getElementById('diaryBoard');
+        board.innerHTML = '';
+        const dateKey = new Date(currentTimestamp).toISOString().split('T')[0];
+        const savedData = JSON.parse(localStorage.getItem('devil_hsc_' + dateKey)) || { tasks: {}, status: {} };
+
+        allTimes.forEach((time, i) => {
+            const isSleep = i < 7;
+            const status = savedData.status[i] || '';
+            const div = document.createElement('div');
+            div.className = `slot ${status}`;
+            div.id = `slot-${i}`;
+            div.innerHTML = `
+                <span class="time-badge">☠️ ${time}</span>
+                <input type="text" class="task-input" id="task-${i}" value="${isSleep ? 'RECOVERY 💤' : (savedData.tasks[i] || '')}" oninput="saveAll()">
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button class="btn-check" onclick="setStatus(${i}, 'done')">DONE</button>
+                    <button class="btn-cross" onclick="setStatus(${i}, 'miss')">MISS</button>
+                </div>
+            `;
+            board.appendChild(div);
+        });
+        updateReport();
+        updateDeadline();
+    }
+
+    function setStatus(i, s) {
+        const row = document.getElementById(`slot-${i}`);
+        row.classList.remove('done', 'miss');
+        row.classList.add(s);
+        saveAll();
+    }
+
+    function saveAll() {
+        const dateKey = new Date(currentTimestamp).toISOString().split('T')[0];
+        const data = { tasks: {}, status: {} };
+        allTimes.forEach((_, i) => {
+            const row = document.getElementById(`slot-${i}`);
+            data.tasks[i] = document.getElementById(`task-${i}`).value;
+            if(row.classList.contains('done')) data.status[i] = 'done';
+            if(row.classList.contains('miss')) data.status[i] = 'miss';
+        });
+        localStorage.setItem('devil_hsc_' + dateKey, JSON.stringify(data));
+        updateReport();
+    }
+
+    function updateReport() {
+        const dateKey = new Date(currentTimestamp).toISOString().split('T')[0];
+        const data = JSON.parse(localStorage.getItem('devil_hsc_' + dateKey)) || {status: {}};
+        let done = 0; Object.values(data.status).forEach(v => { if(v === 'done') done++; });
+        let percent = Math.round((done / allTimes.length) * 100);
+        document.getElementById('progressText').innerText = percent + "%";
+        document.getElementById('progressBar').style.width = percent + "%";
+    }
+
+    renderDiary();
+    setInterval(updateDeadline, 60000); // Update every minute
+</script>
+</body>
+</html>
